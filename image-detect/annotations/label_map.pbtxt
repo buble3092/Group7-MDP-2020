@@ -1,0 +1,65 @@
+item {
+  id: 1
+  name: 'Number 6'
+}
+item {
+  id: 2
+  name: 'Number 7'
+}
+item {
+  id: 3
+  name: 'Number 8'
+}
+item {
+  id: 4
+  name: 'Number 9'
+}
+item {
+  id: 5
+  name: 'Number 0'
+}
+item {
+  id: 6
+  name: 'Left Arrow'
+}
+item {
+  id: 7
+  name: 'Right Arrow'
+}
+item {
+  id: 8
+  name: 'Top Arrow'
+}
+item {
+  id: 9
+  name: 'Down Arrow'
+}
+item {
+  id: 10
+  name: 'V'
+}
+item {
+  id: 11
+  name: 'W'
+}
+item {
+  id: 12
+  name: 'X'
+}
+item {
+  id: 13
+  name: 'Y'
+}
+item {
+  id: 14
+  name: 'Z'
+}
+item {
+  id: 15
+  name: 'Circle'
+}
+item {
+  id: 16
+  name: 'Stop'
+}
+ 
