@@ -1,0 +1,59 @@
+import cv2
+import numpy as np
+import os
+
+
+def concat_tile(img_list2d):
+    return cv2.vconcat([cv2.hconcat])
+
+
+def oneframe():
+    # Read the list of directories and save it an array
+    entries = os.listdir('./processed_images')
+    whiteimg=cv2.imread('white.jpeg')
+    whiteimg=cv2.resize(whiteimg, (0, 0), fx=0.35, fy=0.35)
+    container = []
+    inside_container = []
+    print(entries)
+    count = 0
+    # Read the list and resize the images and finally append it to container
+    for entry in entries:
+        if count == 3:
+            container.append(inside_container)
+            inside_container = []
+            count = 0
+
+        image = cv2.imread('./processed_images/' + entry)
+        image = cv2.resize(image, (0, 0), fx=0.35, fy=0.35)
+        inside_container.append(image)
+        count += 1
+
+    if (len(inside_container) < 3):
+        for i in range(3 - len(inside_container)):
+            inside_container.append(whiteimg)
+
+    container.append(inside_container)
+    # Horizontal Concatenation and display image.
+    im_tile = cv2.vconcat([cv2.hconcat(img_list_h) for img_list_h in container])
+
+    cv2.imshow("Concatenated Images", im_tile)
+    cv2.imwrite(os.path.join('./processed_images/concatenate.jpeg'), im_tile)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+# #Read the list of directories and save it an array
+# entries = os.listdir('./processed_images')
+# container = []
+# print(entries)
+# #Read the list and resize the images and finally append it to container 
+# for entry in entries:
+#     image = cv2.imread('./processed_images/' + entry)
+#     image = cv2.resize(image, (0,0), fx=0.5, fy=0.5)
+#     container.append(image)
+
+# #Horizontal Concatenation and display image.
+# h_concat = cv2.hconcat(container)
+
+# cv2.imshow("Concatenated Images", h_concat)
+# cv2.waitKey(0)
+# cv2.destroyAllWindows()

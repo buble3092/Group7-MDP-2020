@@ -1,0 +1,253 @@
+import socket
+import time
+import struct
+import io
+import _thread
+from PIL import Image
+import numpy as np
+import cv2
+
+import os
+
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+import tensorflow as tf
+
+# tf.config.experimental.set_visible_devices([], 'GPU')
+tf.compat.v1.disable_eager_execution()
+import time
+
+from skimage.measure import compare_ssim
+import imutils
+
+from object_detection.utils import label_map_util
+from object_detection.utils import visualization_utils as vis_util
+
+import matplotlib.pyplot as plt
+import warnings
+
+warnings.filterwarnings('ignore')  # Suppress Matplotlib warnings
+
+tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
+
+from img2pdf import oneframe
+
+from final_main import load_image_into_numpy_array
+from final_main import run_inference_for_single_image
+
+dictionary = {
+    "1": "6",
+    "2": "7",
+    "3": "8",
+    "4": "9",
+    "5": "10",
+    "6": "4",
+    "7": "3",
+    "8": "1",
+    "9": "2",
+    "10": "11",
+    "11": "12",
+    "12": "13",
+    "13": "14",
+    "14": "15",
+    "15": "5",
+    "16": "Stop"
+}
+
+count_dict = {
+    "1": 0,
+    "2": 0,
+    "3": 0,
+    "4": 0,
+    "5": 0,
+    "6": 0,
+    "7": 0,
+    "8": 0,
+    "9": 0,
+    "10": 0,
+    "11": 0,
+    "12": 0,
+    "13": 0,
+    "14": 0,
+    "15": 0,
+    "16": 0
+}
+
+tf.get_logger().setLevel('ERROR')  # Suppress TensorFlow logging (2)
+
+SERVER_HOST = '192.168.7.7'  # The server's hostname or IP address
+SERVER_PORT = 8090  # The port used by the server
+SOCKET_BUFFER_SIZE = 512
+
+
+class Client_Algorithm:
+    def __init__(self, host=SERVER_HOST, port=SERVER_PORT):
+        self.server_host = SERVER_HOST
+        self.server_port = SERVER_PORT
+
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+        # self.socket.bind((self.host, self.port))
+
+        self.socket.connect((self.server_host, self.server_port))
+        # self.socket.listen(1)
+        self.connection = self.socket.makefile('rb')
+
+    def start(self):
+        _thread.start_new_thread(self.testAlgo)
+        _thread.start_new_thread(self.write, ())
+
+    def testAlgo(self):
+        while 1:
+            print("testing")
+            time.sleep(5)
+
+    def read(self):
+        message = self.socket.recv(SOCKET_BUFFER_SIZE).strip()
+        print("From RPI: ")
+        print("\t" + repr(message))
+        return repr(message)
+
+    def write(self, message):
+        print("To RPI: ")
+        print("\t" + message)
+        self.socket.sendall(message.encode('utf-8'))
+
+    def recieveImage(self, counter):
+        image_len = struct.unpack('<L', self.connection.read(struct.calcsize('<L')))[0]
+        image_stream = io.BytesIO()
+        image_stream.write(self.connection.read(image_len))
+        image_stream.seek(0)
+        image = Image.open(image_stream)
+        # to decide tmr
+        # image.show()
+        image.save("D:/Programming/MDP-imagerec/image_processing_rpi/before_detection/" + str(counter) + ".jpeg")
+
+    def imageprocessing(self, counter):
+        image_path = 'before_detection/' + str(counter) + '.jpeg'
+        image = cv2.imread(image_path)
+        stop_sign = cv2.imread("stop_sign.jpeg")
+
+        grayA = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        grayB = cv2.cvtColor(stop_sign, cv2.COLOR_BGR2GRAY)
+
+        (score, diff) = compare_ssim(grayA, grayB, full=True)
+        diff = (diff * 255).astype("uint8")
+
+        if score >= 0.80:
+            return "Stop"
+
+        with detection_graph.as_default():
+            with tf.compat.v1.Session(graph=detection_graph) as sess:
+                image = Image.open(image_path)
+                image_np = load_image_into_numpy_array(image)
+                # Expand dimensions since the model expects images to have shape: [1, None, None, 3]
+                image_np_expanded = np.expand_dims(image_np, axis=0)
+                # Actual detection.
+                output_dict = run_inference_for_single_image(image_np, detection_graph)
+                # Visualization of the results of a detection.
+                vis_util.visualize_boxes_and_labels_on_image_array(
+                    image_np,
+                    output_dict['detection_boxes'],
+                    output_dict['detection_classes'],
+                    output_dict['detection_scores'],
+                    category_index,
+                    use_normalized_coordinates=True,
+                    line_thickness=10,
+                    max_boxes_to_draw=8,
+                    min_score_thresh=0.60)
+
+        # print ([category_index.get(value) for index,value in enumerate(detections['detection_classes'][0]) if detections['detection_scores'][0,index] > 0.55])
+
+        # #Converting the image class to a string for passing out.
+        # Converting the image class to a string for passing out.
+        if (output_dict['detection_scores'][0] < 0.6):
+            return "!"
+        # elif output_dict['detection_classes'][0] == '11':
+        # 	if output_dict['detection_scores'][0] > 0.7:
+        # 		return (dictionary.get(str(output_dict['detection_classes'][0])))
+        # 	else:
+        # 		return "!"
+        else:
+            x = str(output_dict['detection_classes'][0])
+            img_rgb = cv2.cvtColor(image_np, cv2.COLOR_BGR2RGB)
+            value = count_dict.get(dictionary.get(x))
+            if value == 0:
+                cv2.imwrite(os.path.join('./processed_images/', str(counter) + '.jpeg'), img_rgb)
+                count_dict[dictionary.get(x)] = 1
+
+            return (dictionary.get(x))
+
+    # # DISPLAYS OUTPUT IMAGE
+    # cv2.imshow('Object Detector', image_with_detections)
+    # cv2.imwrite(os.path.join('./processed_images/' , str(counter)+'.jpeg'), image_with_detections)
+
+    # # CLOSES WINDOW ONCE KEY IS PRESSED
+    # cv2.waitKey(0)
+    # CLEANUP
+    # cv2.destroyAllWindows()
+
+
+client = Client_Algorithm()
+counter = 0
+# Loading of the model and getting required variables
+
+# PROVIDE PATH TO MODEL DIRECTORY
+PATH_TO_FROZEN_GRAPH = 'exported-models/fine_tuned_model/frozen_inference_graph.pb'
+
+# PROVIDE PATH TO LABEL MAP
+PATH_TO_LABEL_MAP = 'exported-models/fine_tuned_model/label_map.pbtxt'
+
+detection_graph = tf.compat.v1.Graph()
+with detection_graph.as_default():
+    od_graph_def = tf.compat.v1.GraphDef()
+    with tf.compat.v1.gfile.GFile(PATH_TO_FROZEN_GRAPH, 'rb') as fid:
+        serialized_graph = fid.read()
+        od_graph_def.ParseFromString(serialized_graph)
+        tf.import_graph_def(od_graph_def, name='')
+
+label_map = label_map_util.load_labelmap(PATH_TO_LABEL_MAP)
+categories = label_map_util.convert_label_map_to_categories(label_map, max_num_classes=16, use_display_name=True)
+category_index = label_map_util.create_category_index(categories)
+
+with detection_graph.as_default():
+    with tf.compat.v1.Session(graph=detection_graph) as sess:
+        image = Image.open('white.jpeg')
+        image_np = load_image_into_numpy_array(image)
+        # Expand dimensions since the model expects images to have shape: [1, None, None, 3]
+        image_np_expanded = np.expand_dims(image_np, axis=0)
+        # Actual detection.
+        output_dict = run_inference_for_single_image(image_np, detection_graph)
+        # Visualization of the results of a detection.
+        vis_util.visualize_boxes_and_labels_on_image_array(
+            image_np,
+            output_dict['detection_boxes'],
+            output_dict['detection_classes'],
+            output_dict['detection_scores'],
+            category_index,
+            use_normalized_coordinates=True,
+            line_thickness=10,
+            max_boxes_to_draw=8,
+            min_score_thresh=0.60)
+
+print('Model Loaded... ')
+
+running_program = True
+
+while running_program:
+    client.recieveImage(counter)
+    result = client.imageprocessing(counter)
+    if result == "Stop":
+        oneframe()
+        break
+    counter = counter + 1
+    client.write(result)
+
+# while 1:
+#	if (counter <= 4):
+#		client.recieveImage(counter)
+#		client.imageprocessing(counter)
+#		counter = counter + 1
+#	else:
+#		break
+
+# Concatenation of images
